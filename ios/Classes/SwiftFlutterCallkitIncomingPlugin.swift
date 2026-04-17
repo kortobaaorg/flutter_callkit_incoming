@@ -194,6 +194,17 @@ public class SwiftFlutterCallkitIncomingPlugin: NSObject, FlutterPlugin, CXProvi
             break;
         case "endAllCalls":
             self.callManager.endCallAlls()
+            self.forceResetAudioSession()
+            result(true)
+            break
+        case "forceResetCallState":
+            // KORTOBAA fork addition (2026-04-17): iOS symmetric reset.
+            // Ends all active CallKit calls via CXEndCallAction (the proper
+            // way on iOS) + defensively deactivates the shared AVAudioSession
+            // so a rapid re-call doesn't inherit stuck audio state.
+            // Parallel to Android's forceResetTelecomState.
+            self.callManager.endCallAlls()
+            self.forceResetAudioSession()
             result(true)
             break
         case "getDevicePushTokenVoIP":
@@ -398,6 +409,26 @@ public class SwiftFlutterCallkitIncomingPlugin: NSObject, FlutterPlugin, CXProvi
     @objc public func endAllCalls() {
         self.isFromPushKit = false
         self.callManager.endCallAlls()
+    }
+
+    /// KORTOBAA fork addition (2026-04-17): iOS symmetric nuclear reset.
+    ///
+    /// Parallels the Android `forceResetTelecomState` helper. Defensively
+    /// deactivates the shared AVAudioSession so that a rapid re-call does
+    /// not inherit stuck audio state (category/mode leftover from the
+    /// previous CallKit session). iOS's `CXEndCallAction` normally handles
+    /// this via `didDeactivateAudioSession` callback, but the callback
+    /// fires asynchronously after `endCallAlls()` returns — and on rapid
+    /// re-call (< 1s) the AVAudioSession may not have fully deactivated
+    /// before WebRTC tries to reactivate it.
+    private func forceResetAudioSession() {
+        let session = AVAudioSession.sharedInstance()
+        do {
+            try session.setActive(false, options: [.notifyOthersOnDeactivation])
+            NSLog("[FlutterCallkitIncoming] forceResetAudioSession: AVAudioSession deactivated")
+        } catch {
+            NSLog("[FlutterCallkitIncoming] forceResetAudioSession failed: %@", error.localizedDescription)
+        }
     }
     
     public func saveEndCall(_ uuid: String, _ reason: Int) {
