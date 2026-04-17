@@ -187,6 +187,43 @@ class FlutterCallkitIncomingPlugin : FlutterPlugin, MethodCallHandler, ActivityA
         removeAllCalls(context)
     }
 
+    /**
+     * KORTOBAA fork fix (2026-04-17): force-release Android Telecom
+     * CommSess + audio state after a call ends.
+     *
+     * Upstream `flutter_callkit_incoming` only dismisses the notification
+     * UI on `endAllCalls`. Android Telecom's CallAudioWatchdog keeps the
+     * SelfManaged PhoneAccount's communication session alive for minutes
+     * afterwards, silently rejecting the NEXT incoming call's
+     * `showCallkitIncoming` request on Xiaomi MIUI and other vendors.
+     *
+     * This helper:
+     *   1. Stops the foreground CallkitNotificationService (pulls the
+     *      persistent ongoing-call notification).
+     *   2. Resets AudioManager MODE to MODE_NORMAL so WebRTC / flutter_webrtc
+     *      doesn't leak MODE_IN_COMMUNICATION into the next call.
+     *
+     * Evidence: live adb logcat showed `Telecom: CallAudioWatchdog:
+     * CommSess{duration=311s}` still alive 5 minutes after Call 1 ended;
+     * Call 2's `ACTION_CALL_INCOMING` broadcast fired but no UI displayed.
+     * Research citations: react-native-callkeep #665, SignalWire zombie-call.
+     */
+    private fun forceResetTelecomState() {
+        val ctx = context ?: return
+        try {
+            CallkitNotificationService.stopService(ctx)
+        } catch (t: Throwable) {
+            android.util.Log.w("FlutterCallkitIncoming", "forceResetTelecomState: stopService failed: $t")
+        }
+        try {
+            val am = ctx.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
+            am?.mode = android.media.AudioManager.MODE_NORMAL
+        } catch (t: Throwable) {
+            android.util.Log.w("FlutterCallkitIncoming", "forceResetTelecomState: audio mode reset failed: $t")
+        }
+        android.util.Log.i("FlutterCallkitIncoming", "forceResetTelecomState: stopped service + MODE_NORMAL")
+    }
+
     public fun sendEventCustom(body: Map<String, Any>) {
         eventHandlers.reapCollection().forEach {
             it.get()?.send(CallkitConstants.ACTION_CALL_CUSTOM, body)
@@ -323,6 +360,30 @@ class FlutterCallkitIncomingPlugin : FlutterPlugin, MethodCallHandler, ActivityA
                         }
                     }
                     removeAllCalls(context)
+                    // KORTOBAA 2026-04-17 re-call fix:
+                    // Explicitly stop CallkitNotificationService + reset
+                    // AudioManager mode so Android TelecomManager's
+                    // CallAudioWatchdog drops the SelfManaged CommSess that
+                    // otherwise blocks Call 2's incoming UI.
+                    // See: react-native-callkeep #665, SignalWire zombie-call pattern.
+                    forceResetTelecomState()
+                    result.success(true)
+                }
+
+                "forceResetCallState" -> {
+                    // KORTOBAA 2026-04-17: nuclear reset exposed from Dart.
+                    // Equivalent to endAllCalls + force-release native Telecom + audio state.
+                    val calls = getDataActiveCalls(context)
+                    calls.forEach {
+                        context?.sendBroadcast(
+                            CallkitIncomingBroadcastReceiver.getIntentEnded(
+                                requireNotNull(context),
+                                it.toBundle()
+                            )
+                        )
+                    }
+                    removeAllCalls(context)
+                    forceResetTelecomState()
                     result.success(true)
                 }
 

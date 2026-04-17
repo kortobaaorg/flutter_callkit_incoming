@@ -12,10 +12,12 @@ import 'entities/entities.dart';
 /// * callConnected(dynamic)
 
 class FlutterCallkitIncoming {
-  static const MethodChannel _channel =
-      MethodChannel('flutter_callkit_incoming');
-  static const EventChannel _eventChannel =
-      EventChannel('flutter_callkit_incoming_events');
+  static const MethodChannel _channel = MethodChannel(
+    'flutter_callkit_incoming',
+  );
+  static const EventChannel _eventChannel = EventChannel(
+    'flutter_callkit_incoming_events',
+  );
 
   /// Listen to event callback from [FlutterCallkitIncoming].
   ///
@@ -101,6 +103,29 @@ class FlutterCallkitIncoming {
   /// End all calls.
   static Future endAllCalls() async {
     await _channel.invokeMethod("endAllCalls");
+  }
+
+  /// KORTOBAA fork addition (2026-04-17): Nuclear reset of native call
+  /// state. Dismisses all active CallKit notifications AND explicitly
+  /// stops the Android CallkitNotificationService foreground service AND
+  /// resets `AudioManager.MODE` to `MODE_NORMAL`.
+  ///
+  /// This is the fix for the MIUI re-call bug where Call 2's incoming UI
+  /// silently never shows because Android Telecom's CallAudioWatchdog is
+  /// still tracking a `CommSess` from Call 1. Calling `endAllCalls()`
+  /// dismisses the notification but does NOT release that Telecom
+  /// session; this method does both.
+  ///
+  /// No-op on iOS (the equivalent behavior is native via CXEndCallAction).
+  static Future forceResetCallState() async {
+    try {
+      await _channel.invokeMethod("forceResetCallState");
+    } on MissingPluginException {
+      // iOS / older Android plugins without this method — fall back to
+      // endAllCalls so the caller gets at least the notification-level
+      // cleanup.
+      await _channel.invokeMethod("endAllCalls");
+    }
   }
 
   /// Get active calls.
