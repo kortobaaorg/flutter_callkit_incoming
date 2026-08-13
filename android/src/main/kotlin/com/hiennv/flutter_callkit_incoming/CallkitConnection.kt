@@ -108,13 +108,37 @@ class CallkitConnection(
     override fun onDisconnect() {
         super.onDisconnect()
         Log.d(TAG, "onDisconnect id=$callId")
+        notifyDartCallEnded()
         finishWithCause(DisconnectCause.LOCAL)
     }
 
     override fun onAbort() {
         super.onAbort()
         Log.d(TAG, "onAbort id=$callId")
+        notifyDartCallEnded()
         finishWithCause(DisconnectCause.UNKNOWN)
+    }
+
+    /**
+     * Tell Dart the call is over when the teardown came from Telecom rather
+     * than from us.
+     *
+     * These callbacks fire when the OS ends the call — the system call UI, a
+     * car head unit, or Android's own CallAnomalyWatchdog. Nothing forwarded
+     * them, so the Flutter side never learned: on 2026-08-13 Telecom fully
+     * disconnected at 17:43:14 (`Call count decrement 0`, `Service unbound`)
+     * while the app still showed a running call and a counting timer minutes
+     * later.
+     *
+     * Deliberately not called from [markEnded] / [markDeclined]: those are the
+     * app driving Telecom, so the app already knows and re-emitting would
+     * bounce the event back into the teardown it is already running.
+     */
+    private fun notifyDartCallEnded() {
+        FlutterCallkitIncomingPlugin.sendEvent(
+            CallkitConstants.ACTION_CALL_ENDED,
+            mapOf("id" to callId),
+        )
     }
 
     // Telecom holds this self-managed connection when another call takes over
