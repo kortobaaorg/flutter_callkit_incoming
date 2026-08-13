@@ -1,3 +1,65 @@
+## 3.1.5
+* Fix Android: resolve build errors introduced in 3.1.4.
+* Fix Android: always call `startForeground` to prevent `ForegroundServiceDidNotStartInTimeException`, thank @AAkira https://github.com/hiennguyen92/flutter_callkit_incoming/pull/857
+* Fix Android: remove automatic launch of full screen intent settings that crashes `CallkitIncomingActivity` on Android 14+, thank @AAkira https://github.com/hiennguyen92/flutter_callkit_incoming/pull/856
+* Fix Android: stop incoming ringtone from silencing itself, and silence it correctly on volume-key press, thank @AAkira https://github.com/hiennguyen92/flutter_callkit_incoming/pull/855
+* Fix Android: native `OnDecline` callback not running when app is in terminated state, thank @salamay https://github.com/hiennguyen92/flutter_callkit_incoming/pull/854
+* Fix Android: complete Telecom hold integration for self-managed calls, thank @m-lhb https://github.com/hiennguyen92/flutter_callkit_incoming/pull/852
+* Fix Android: only add `MICROPHONE`/`CAMERA` foreground service types when permission is granted, thank @m-lhb https://github.com/hiennguyen92/flutter_callkit_incoming/pull/848
+* Fix Android: restore foreground service on OS restart to prevent microphone loss in background, thank @skutimechanic https://github.com/hiennguyen92/flutter_callkit_incoming/pull/842
+* Fix Android: `ActionCallToggleAudioSession` key name `isActivate` inconsistency, thank @skutimechanic https://github.com/hiennguyen92/flutter_callkit_incoming/pull/836
+* Fix iOS: send `isActive` (not `isActivate`) in `ACTION_CALL_TOGGLE_AUDIO_SESSION` events, thank @m-lhb https://github.com/hiennguyen92/flutter_callkit_incoming/pull/853
+* Fix iOS: audio session ordering and end-call action handling for edge cases, thank @m-lhb https://github.com/hiennguyen92/flutter_callkit_incoming/pull/850
+* Fix iOS: don't re-answer an already-connected call in `connectedCall`, thank @m-lhb https://github.com/hiennguyen92/flutter_callkit_incoming/pull/849
+* Fix iOS: crash on `ACTION_CALL_CUSTOM` — convert event body instead of unsafe cast, thank @andrei-uni https://github.com/hiennguyen92/flutter_callkit_incoming/pull/847
+
+## 3.1.4
+
+* Fix Android: always call `startForeground` to prevent `ForegroundServiceDidNotStartInTimeException`, thank @AAkira https://github.com/hiennguyen92/flutter_callkit_incoming/pull/857
+* Fix Android: remove automatic launch of full screen intent settings that crashes `CallkitIncomingActivity` on Android 14+, thank @AAkira https://github.com/hiennguyen92/flutter_callkit_incoming/pull/856
+* Fix Android: stop incoming ringtone from silencing itself, and silence it correctly on volume-key press, thank @AAkira https://github.com/hiennguyen92/flutter_callkit_incoming/pull/855
+* Fix Android: native `OnDecline` callback not running when app is in terminated state, thank @salamay https://github.com/hiennguyen92/flutter_callkit_incoming/pull/854
+* Fix Android: complete Telecom hold integration for self-managed calls, thank @m-lhb https://github.com/hiennguyen92/flutter_callkit_incoming/pull/852
+* Fix Android: only add `MICROPHONE`/`CAMERA` foreground service types when permission is granted, thank @m-lhb https://github.com/hiennguyen92/flutter_callkit_incoming/pull/848
+* Fix Android: restore foreground service on OS restart to prevent microphone loss in background, thank @skutimechanic https://github.com/hiennguyen92/flutter_callkit_incoming/pull/842
+* Fix Android: `ActionCallToggleAudioSession` key name `isActivate` inconsistency, thank @skutimechanic https://github.com/hiennguyen92/flutter_callkit_incoming/pull/836
+* Fix iOS: send `isActive` (not `isActivate`) in `ACTION_CALL_TOGGLE_AUDIO_SESSION` events, thank @m-lhb https://github.com/hiennguyen92/flutter_callkit_incoming/pull/853
+* Fix iOS: audio session ordering and end-call action handling for edge cases, thank @m-lhb https://github.com/hiennguyen92/flutter_callkit_incoming/pull/850
+* Fix iOS: don't re-answer an already-connected call in `connectedCall`, thank @m-lhb https://github.com/hiennguyen92/flutter_callkit_incoming/pull/849
+* Fix iOS: crash on `ACTION_CALL_CUSTOM` — convert event body instead of unsafe cast, thank @andrei-uni https://github.com/hiennguyen92/flutter_callkit_incoming/pull/847
+
+## 3.1.3
+* Fix Android: do not launch app when call is declined from self-managed Telecom connection, thank @iboogey https://github.com/hiennguyen92/flutter_callkit_incoming/pull/829
+
+## 3.1.2
+* Fix pack mapped data to expose call event, thank @skutimechanic https://github.com/hiennguyen92/flutter_callkit_incoming/pull/823
+* Fix iOS: restore maximumCallGroups config, hold handler, holdCall event, thank @md-riaz https://github.com/hiennguyen92/flutter_callkit_incoming/pull/825
+
+## 3.1.1
+* Reorganize iOS native source directory to support Swift Package Manager (SPM) by placing all source files inside the package root (`ios/flutter_callkit_incoming/Classes/`).
+* Resolve SPM mixed-language constraint by removing Objective-C wrappers and implementing a pure-Swift registrar class `@objc(FlutterCallkitIncomingPlugin)` to ensure seamless CocoaPods backward compatibility.
+* Modernize example app's Objective-C imports in `AppDelegate.m` using Clang module import syntax `@import flutter_callkit_incoming;`.
+
+## 3.1.0
+* Add native **Swift Package Manager (SPM)** support for iOS with auto-linked `CryptoSwift` dependency.
+* Add explicit Objective-C compatible overload `showCallkitIncoming(_:fromPushKit:)` in `SwiftFlutterCallkitIncomingPlugin` to fix compilation issues in native Objective-C runner.
+* Conform `AppDelegate` in example project to `CallkitIncomingAppDelegate` by implementing the missing `providerDidReset()` method.
+* Update environment constraints in `pubspec.yaml` to require Dart SDK `>=3.0.0` and Flutter `>=3.10.0`.
+* Add optional `onError` completion handler to `showCallkitIncoming` for iOS, thank @nukeolay https://github.com/hiennguyen92/flutter_callkit_incoming/pull/803
+* Implement self-managed Telecom ConnectionService on Android, thank @kennss https://github.com/hiennguyen92/flutter_callkit_incoming/pull/809
+* Add Background Message Handler and Enhanced Android Foreground Service Support, thank @fedehsq https://github.com/hiennguyen92/flutter_callkit_incoming/pull/800
+* Fix Android duplicated notification on call connected event, thank @skutimechanic https://github.com/hiennguyen92/flutter_callkit_incoming/pull/764
+* Refactor and improve type safety, thank @AAkira https://github.com/hiennguyen92/flutter_callkit_incoming/pull/772
+* Implement volume key handling to mute incoming call sound on key press, thank @jawad1257 https://github.com/hiennguyen92/flutter_callkit_incoming/pull/781
+* Fix ongoing ringtone and vibrations on the action call connected, thank @skutimechanic https://github.com/hiennguyen92/flutter_callkit_incoming/pull/783
+* Add custom color option for accept and decline buttons for Android, thank @baldarama https://github.com/hiennguyen92/flutter_callkit_incoming/pull/790
+* Fix Android ringtone/vibration stopping on auto lock, thank @phildupuis https://github.com/hiennguyen92/flutter_callkit_incoming/pull/792
+* Dynamically update CXProvider configuration for subsequent calls on iOS, thank @MS-Rex https://github.com/hiennguyen92/flutter_callkit_incoming/pull/805
+* Fix Android showCallkitIncoming silently dropping calls when host process is kept alive, thank @sherzodkamoldinov https://github.com/hiennguyen92/flutter_callkit_incoming/pull/808
+* Refactor notification and sound management: Updated incoming notification, thank @AbdurahmanAlmehdi https://github.com/hiennguyen92/flutter_callkit_incoming/pull/812
+* Fix iOS outgoing call actionCallAccept emitting default/empty Data instead of original call params, thank @mechtech-mind https://github.com/hiennguyen92/flutter_callkit_incoming/pull/813
+* Fix and handle null intent.action in TransparentActivity, thank @AlexBacich https://github.com/hiennguyen92/flutter_callkit_incoming/pull/814
+
 ## 3.0.0
 * Using Plugin DSL for Android, thank @AAkira https://github.com/hiennguyen92/flutter_callkit_incoming/pull/743
 * Add Android native callback, thank @joshoconnor89 https://github.com/hiennguyen92/flutter_callkit_incoming/pull/736

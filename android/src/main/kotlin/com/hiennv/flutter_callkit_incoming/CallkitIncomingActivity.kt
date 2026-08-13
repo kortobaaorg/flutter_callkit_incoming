@@ -1,3 +1,10 @@
+//  Modification by Signify in this file are under the following license:
+//
+//  Copyright 2024, Signify Holding
+//  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+//  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 package com.hiennv.flutter_callkit_incoming
 
 import android.app.Activity
@@ -5,13 +12,17 @@ import android.app.KeyguardManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.Intent.FLAG_ACTIVITY_NEW_TASK
 import android.content.IntentFilter
 import android.content.pm.ActivityInfo
 import android.graphics.Color
+import android.graphics.drawable.Drawable
+import androidx.core.graphics.drawable.DrawableCompat
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.KeyEvent
 import android.view.View
 import android.view.Window
 import android.view.WindowManager
@@ -36,14 +47,21 @@ class CallkitIncomingActivity : Activity() {
 
         fun getIntent(context: Context, data: Bundle) =
             Intent(CallkitConstants.ACTION_CALL_INCOMING).apply {
+                setClassName(context.packageName, "com.hiennv.flutter_callkit_incoming.CallkitIncomingActivity")
                 action = "${context.packageName}.${CallkitConstants.ACTION_CALL_INCOMING}"
                 putExtra(CallkitConstants.EXTRA_CALLKIT_INCOMING_DATA, data)
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                `package` = context.packageName
             }
 
         fun getIntentEnded(context: Context, isAccepted: Boolean): Intent {
             val intent = Intent("${context.packageName}.${ACTION_ENDED_CALL_INCOMING}")
             intent.putExtra("ACCEPTED", isAccepted)
+            intent.setPackage(context.packageName)
+            intent.setClassName(
+                context.packageName,
+                "com.hiennv.flutter_callkit_incoming.CallkitIncomingActivity"
+            )
             return intent
         }
     }
@@ -94,7 +112,6 @@ class CallkitIncomingActivity : Activity() {
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             window.addFlags(WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON)
             window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED)
-            window.addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD)
         }
         transparentStatusAndNavigation()
         setContentView(R.layout.activity_callkit_incoming)
@@ -112,6 +129,7 @@ class CallkitIncomingActivity : Activity() {
                 IntentFilter("${packageName}.${ACTION_ENDED_CALL_INCOMING}")
             )
         }
+        FlutterCallkitIncomingPlugin.getInstance()?.getCallkitSoundPlayerManager()?.keepRingingOnFullScreen();
     }
 
     private fun wakeLockRequest(duration: Long) {
@@ -222,6 +240,20 @@ class CallkitIncomingActivity : Activity() {
         val textDecline = data?.getString(CallkitConstants.EXTRA_CALLKIT_TEXT_DECLINE, "")
         tvDecline.text =
             if (TextUtils.isEmpty(textDecline)) getString(R.string.text_decline) else textDecline
+
+        val acceptCallColor =
+            data?.getString(CallkitConstants.EXTRA_CALLKIT_ACCEPT_COLOR, "#4CAF50")
+        try {
+            ivAcceptCall.setBackground(AppUtils.createCircleDrawable(Color.parseColor(acceptCallColor)))
+        } catch (error: Exception) {
+        }
+
+        val declineCallColor =
+            data?.getString(CallkitConstants.EXTRA_CALLKIT_DECLINE_COLOR, "#F44336")
+        try {
+            ivDeclineCall.setBackground(AppUtils.createCircleDrawable(Color.parseColor(declineCallColor)))
+        } catch (error: Exception) {
+        }
 
         try {
             tvAccept.setTextColor(Color.parseColor(textColor))
@@ -359,6 +391,19 @@ class CallkitIncomingActivity : Activity() {
         unregisterReceiver(endedCallkitIncomingBroadcastReceiver)
         super.onDestroy()
     }
+
+    // Start Signify modification
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+            val soundPlayerManager = FlutterCallkitIncomingPlugin.getInstance()?.getCallkitSoundPlayerManager()
+            if (soundPlayerManager?.isPlaying == true) {
+                soundPlayerManager.stop()
+                return true 
+            }
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+    // End Signify modification
 
     override fun onBackPressed() {}
 }
