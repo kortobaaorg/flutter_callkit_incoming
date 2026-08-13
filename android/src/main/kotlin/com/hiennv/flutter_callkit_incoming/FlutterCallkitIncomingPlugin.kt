@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.os.Build
+import android.telecom.CallAudioState
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -499,7 +500,41 @@ class FlutterCallkitIncomingPlugin : FlutterPlugin, MethodCallHandler, ActivityA
                     result.success(true)
                 }
 
+                // KORTOBAA fork (2026-08-13): was a no-op stub, so the app's
+                // speaker choice only ever went to AudioManager — where
+                // Telecom, being privileged, overrode it moments later. Route
+                // through the self-managed Connection instead, which Telecom
+                // honours and will not fight.
                 "setAudioRoute" -> {
+                    val args = call.arguments<HashMap<String, Any?>>() ?: HashMap()
+                    val id = args["id"] as? String
+                    val route = args["route"] as? String
+                    val telecomRoute = when (route) {
+                        "speaker" -> CallAudioState.ROUTE_SPEAKER
+                        "earpiece" -> CallAudioState.ROUTE_EARPIECE
+                        "bluetooth" -> CallAudioState.ROUTE_BLUETOOTH
+                        "wired" -> CallAudioState.ROUTE_WIRED_HEADSET
+                        else -> null
+                    }
+                    if (id == null || telecomRoute == null) {
+                        Log.d(TAG, "setAudioRoute ignored id=$id route=$route")
+                        result.success(false)
+                        return
+                    }
+                    val connection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        CallkitConnection.find(id)
+                    } else {
+                        null
+                    }
+                    if (connection == null) {
+                        // No self-managed connection for this id — the app's
+                        // own AudioManager handling is all there is, and it
+                        // works unopposed in that case.
+                        Log.d(TAG, "setAudioRoute no connection for id=$id")
+                        result.success(false)
+                        return
+                    }
+                    connection.applyAudioRoute(telecomRoute)
                     result.success(true)
                 }
             }

@@ -184,6 +184,35 @@ class FlutterCallkitIncoming {
     await _channel.invokeMethod("endAllCalls");
   }
 
+  /// KORTOBAA fork addition (2026-08-13): route an ongoing call's audio
+  /// through the Telecom connection rather than only through AudioManager.
+  ///
+  /// Android decides the route for a self-managed call itself and applies it
+  /// as a privileged client about ten seconds after the connection goes
+  /// active, overriding whatever the app set with `setSpeakerphoneOn`. A call
+  /// picked as speaker came out of the earpiece until the user toggled the
+  /// speaker a second time. Asking Telecom directly is honoured, and the
+  /// route is re-asserted if Telecom later moves it.
+  ///
+  /// [route] is one of `speaker`, `earpiece`, `bluetooth`, `wired`. Returns
+  /// false when no self-managed connection exists for [id] — in which case
+  /// nothing is competing with the app's own routing anyway.
+  ///
+  /// No-op on iOS: AVAudioSession category options already own the route
+  /// there, and CallKit does not fight them.
+  static Future<bool> setAudioRoute(String id, String route) async {
+    if (defaultTargetPlatform != TargetPlatform.android) return false;
+    try {
+      final applied = await _channel.invokeMethod(
+        "setAudioRoute",
+        {'id': id, 'route': route},
+      );
+      return applied == true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   /// KORTOBAA fork addition (2026-04-17): Nuclear reset of native call
   /// state. Dismisses all active CallKit notifications AND explicitly
   /// stops the Android CallkitNotificationService foreground service AND

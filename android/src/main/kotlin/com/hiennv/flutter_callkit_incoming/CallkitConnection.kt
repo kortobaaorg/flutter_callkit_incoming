@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.telecom.CallAudioState
 import android.telecom.Connection
 import android.telecom.DisconnectCause
 import android.telecom.TelecomManager
@@ -152,6 +153,61 @@ class CallkitConnection(
         super.onUnhold()
         Log.d(TAG, "onUnhold id=$callId")
         resume()
+    }
+
+    // -------------------------------------------------------------------------
+    // Audio routing
+    //
+    // KORTOBAA fork addition (2026-08-13). Telecom picks the route for a
+    // self-managed connection itself and applies it as a privileged client:
+    // `setCommunicationDevice(deviceType=1)` from uid 1000, roughly ten
+    // seconds after the connection goes active. That silently overrode the
+    // app's own `setSpeakerphoneOn(true)` — a call selected as speaker came
+    // out of the earpiece, and only toggling the speaker a second time, after
+    // Telecom had settled, made it stick.
+    //
+    // The app's request is non-privileged and loses that race every time, so
+    // the route has to be asked for through Telecom instead. Remember what
+    // was asked for and re-assert it whenever Telecom moves us off it.
+    // -------------------------------------------------------------------------
+
+    @Volatile
+    private var desiredRoute: Int? = null
+
+    /** Route this call through [route], one of `CallAudioState.ROUTE_*`. */
+    fun applyAudioRoute(route: Int) {
+        desiredRoute = route
+        Log.d(TAG, "applyAudioRoute id=$callId route=$route")
+        try {
+            setAudioRoute(route)
+        } catch (e: Exception) {
+            Log.w(TAG, "setAudioRoute failed: ${e.message}")
+        }
+    }
+
+    override fun onCallAudioStateChanged(state: CallAudioState) {
+        super.onCallAudioStateChanged(state)
+        val desired = desiredRoute
+        Log.d(
+            TAG,
+            "onCallAudioStateChanged id=$callId route=${state.route} " +
+                "supported=${state.supportedRouteMask} desired=$desired",
+        )
+        if (desired == null || state.route == desired) return
+        // Only re-assert a route the device actually offers, otherwise this
+        // loops: Telecom rejects the request, fires the callback again with
+        // the old route, and we ask once more.
+        if (state.supportedRouteMask and desired == 0) {
+            Log.d(TAG, "desired route $desired unsupported — leaving ${state.route}")
+            desiredRoute = null
+            return
+        }
+        Log.d(TAG, "re-asserting route $desired over ${state.route}")
+        try {
+            setAudioRoute(desired)
+        } catch (e: Exception) {
+            Log.w(TAG, "re-assert failed: ${e.message}")
+        }
     }
 
     private fun resume() {
