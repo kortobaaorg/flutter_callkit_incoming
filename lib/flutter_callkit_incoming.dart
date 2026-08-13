@@ -185,6 +185,28 @@ class FlutterCallkitIncoming {
     await _channel.invokeMethod("endAllCalls");
   }
 
+  /// KORTOBAA fork addition (2026-08-13): mark the native call as active.
+  ///
+  /// Android's Telecom treats a self-managed connection that never reaches
+  /// ACTIVE as stuck and disconnects it after about 100 seconds with
+  /// `REQUEST_DISCONNECT, State timeout`. Outgoing calls never joined the
+  /// stored active-call list that [setCallConnected] relies on, so nothing
+  /// ever marked them active and every Android-initiated call was killed at
+  /// that mark.
+  ///
+  /// Call this once the call is genuinely established. Returns false when no
+  /// self-managed connection exists for [id]. No-op on iOS, where CallKit
+  /// tracks the call state itself.
+  static Future<bool> setCallActive(String id) async {
+    if (defaultTargetPlatform != TargetPlatform.android) return false;
+    try {
+      final applied = await _channel.invokeMethod("setCallActive", {'id': id});
+      return applied == true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   /// KORTOBAA fork addition (2026-08-13): route an ongoing call's audio
   /// through the Telecom connection rather than only through AudioManager.
   ///

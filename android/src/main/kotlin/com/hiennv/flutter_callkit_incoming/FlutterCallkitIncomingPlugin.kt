@@ -500,6 +500,38 @@ class FlutterCallkitIncomingPlugin : FlutterPlugin, MethodCallHandler, ActivityA
                     result.success(true)
                 }
 
+                // KORTOBAA fork (2026-08-13): mark a self-managed connection
+                // ACTIVE once the call is really up.
+                //
+                // `callConnected` above only broadcasts when the id is found
+                // in the stored active-call list, which outgoing calls never
+                // join, so `markAccepted` was never reached for them. Telecom
+                // treats a connection stuck outside ACTIVE as an anomaly and
+                // disconnects it — `REQUEST_DISCONNECT, State timeout` at
+                // about 100 seconds, killing every Android-initiated call.
+                //
+                // Look the connection up directly rather than going through
+                // the broadcast, so it works regardless of how the call was
+                // started.
+                "setCallActive" -> {
+                    val args = call.arguments<HashMap<String, Any?>>() ?: HashMap()
+                    val id = args["id"] as? String
+                    val connection = if (id != null &&
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                    ) {
+                        CallkitConnection.find(id)
+                    } else {
+                        null
+                    }
+                    if (connection == null) {
+                        Log.d(TAG, "setCallActive no connection for id=$id")
+                        result.success(false)
+                        return
+                    }
+                    connection.markAccepted()
+                    result.success(true)
+                }
+
                 // KORTOBAA fork (2026-08-13): was a no-op stub, so the app's
                 // speaker choice only ever went to AudioManager — where
                 // Telecom, being privileged, overrode it moments later. Route

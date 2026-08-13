@@ -135,6 +135,15 @@ class CallkitConnection(
      * bounce the event back into the teardown it is already running.
      */
     private fun notifyDartCallEnded() {
+        // Only for a call that actually got going. A connection that never
+        // reached ACTIVE is one Telecom is tidying up — the anomaly watchdog
+        // firing on a stuck outgoing call, say — and the app's own ringing
+        // and no-answer handling owns that window. Forwarding it ended live
+        // calls at ~100 seconds on 2026-08-13.
+        if (!hasBeenActive) {
+            Log.d(TAG, "not notifying Dart, connection was never active id=$callId")
+            return
+        }
         FlutterCallkitIncomingPlugin.sendEvent(
             CallkitConstants.ACTION_CALL_ENDED,
             mapOf("id" to callId),
@@ -310,9 +319,26 @@ class CallkitConnection(
     // App → Telecom driving helpers (invoked by the plugin's BroadcastReceiver)
     // -------------------------------------------------------------------------
 
+    /**
+     * Whether Telecom has ever seen this connection go active.
+     *
+     * A self-managed connection that never reaches ACTIVE is treated as
+     * stuck by Android's CallAnomalyWatchdog, which disconnects it with
+     * `REQUEST_DISCONNECT, State timeout` after roughly 100 seconds. Nothing
+     * in this plugin marked an *outgoing* call active — `markAccepted` is
+     * only reached from the accept/connected broadcasts, which the app never
+     * sent — so every Android-initiated call was quietly killed at ~100s.
+     * It went unnoticed because the disconnect was not forwarded to Dart and
+     * the app carried on regardless.
+     */
+    @Volatile
+    var hasBeenActive: Boolean = false
+        private set
+
     /** Mark the call as answered — user accepted via app notification. */
     fun markAccepted() {
         Log.d(TAG, "markAccepted id=$callId")
+        hasBeenActive = true
         setActive()
     }
 
